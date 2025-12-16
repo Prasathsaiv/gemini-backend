@@ -3,7 +3,6 @@ const cors = require("cors");
 const fetch = require("node-fetch");
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
@@ -20,41 +19,40 @@ app.post("/ask", async (req, res) => {
     }
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           contents: [
             {
-              parts: [{ text: prompt }]
-            }
-          ]
-        })
+              parts: [{ text: prompt }],
+            },
+          ],
+        }),
       }
     );
 
     const data = await response.json();
 
-    if (!data.candidates || !data.candidates[0]) {
-      console.error("Gemini API response:", data);
-      return res.status(500).json({ error: "Gemini API error" });
+    if (!response.ok) {
+      console.error("Gemini API error:", data);
+      return res.status(500).json({ error: "Gemini API error", details: data });
     }
 
-    res.json({
-      reply: data.candidates[0].content.parts[0].text
-    });
+    const reply =
+      data.candidates?.[0]?.content?.parts?.[0]?.text || "No response";
 
+    res.json({ reply });
   } catch (error) {
     console.error("Server error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-/* ✅ REQUIRED FOR RENDER */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

@@ -1,25 +1,23 @@
-const express = require("express");
-const cors = require("cors");
-const fetch = require("node-fetch");
+import express from "express";
+import fetch from "node-fetch";
+import cors from "cors";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
 app.post("/ask", async (req, res) => {
   try {
-    const prompt = req.body.prompt;
+    const { prompt } = req.body;
 
     if (!prompt) {
       return res.status(400).json({ error: "Prompt is required" });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: "GEMINI_API_KEY not set" });
-    }
-
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
@@ -28,29 +26,32 @@ app.post("/ask", async (req, res) => {
         body: JSON.stringify({
           contents: [
             {
-              parts: [
-                { text: prompt }
-              ]
-            }
-          ]
+              parts: [{ text: prompt }],
+            },
+          ],
         }),
       }
     );
 
     const data = await response.json();
 
-    res.json({
-      reply:
-        data.candidates?.[0]?.content?.parts?.[0]?.text ||
-        "No response from Gemini",
-    });
+    if (!response.ok) {
+      console.error("Gemini API error:", data);
+      return res.status(500).json({ error: data });
+    }
+
+    const reply =
+      data.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "No response from Gemini";
+
+    res.json({ reply });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Gemini API error" });
+    console.error("Server error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

@@ -29,4 +29,32 @@ app.post("/ask", async (req, res) => {
         body: JSON.stringify({
           contents: [
             {
-              parts: [{ text: prompt]()
+              parts: [{ text: prompt }]
+            }
+          ]
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!data.candidates || !data.candidates[0]) {
+      console.error("Gemini API response:", data);
+      return res.status(500).json({ error: "Gemini API error" });
+    }
+
+    res.json({
+      reply: data.candidates[0].content.parts[0].text
+    });
+
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/* ✅ REQUIRED FOR RENDER */
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});

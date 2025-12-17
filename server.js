@@ -19,11 +19,11 @@ app.post("/ask", async (req, res) => {
   try {
     const { prompt } = req.body;
 
-    if (!prompt) {
+    if (!prompt || prompt.trim() === "") {
       return res.json({ reply: "Prompt is empty" });
     }
 
-    const response = await fetch(
+    const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
@@ -37,27 +37,38 @@ app.post("/ask", async (req, res) => {
               parts: [{ text: prompt }],
             },
           ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 300,
+          },
         }),
       }
     );
 
-    const data = await response.json();
+    const data = await geminiRes.json();
 
     console.log("🔍 RAW GEMINI RESPONSE:");
     console.log(JSON.stringify(data, null, 2));
 
-    // ✅ SAFE TEXT EXTRACTION (WORKS FOR ALL CURRENT GEMINI RESPONSES)
-    let reply =
-      data?.candidates?.[0]?.content?.parts
-        ?.map(p => p.text)
-        .join("") ||
-      data?.candidates?.[0]?.content?.text ||
-      "No text returned by Gemini";
+    let reply = "No text returned by Gemini";
+
+    // ✅ STRONG EXTRACTION (ALL CASES)
+    if (
+      data.candidates &&
+      data.candidates.length > 0 &&
+      data.candidates[0].content &&
+      data.candidates[0].content.parts
+    ) {
+      reply = data.candidates[0].content.parts
+        .map(p => p.text)
+        .filter(Boolean)
+        .join(" ");
+    }
 
     res.json({ reply });
 
-  } catch (err) {
-    console.error("❌ Gemini error:", err);
+  } catch (error) {
+    console.error("❌ Backend error:", error);
     res.status(500).json({ reply: "Backend error" });
   }
 });

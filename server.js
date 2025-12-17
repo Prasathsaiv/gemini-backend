@@ -14,14 +14,16 @@ app.post("/ask", async (req, res) => {
     }
 
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" +
-        process.env.GEMINI_API_KEY,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
           contents: [
             {
+              role: "user",
               parts: [{ text: prompt }]
             }
           ]
@@ -30,29 +32,29 @@ app.post("/ask", async (req, res) => {
     );
 
     const data = await response.json();
-    console.log("RAW GEMINI:", JSON.stringify(data, null, 2));
+    console.log("RAW GEMINI RESPONSE:", JSON.stringify(data, null, 2));
 
     const text =
       data?.candidates?.[0]?.content?.parts
         ?.map(p => p.text)
-        ?.join(" ");
+        ?.join("");
 
     if (!text) {
       return res.json({
         reply: "❌ Gemini returned NO TEXT",
-        debug: data
+        raw: data
       });
     }
 
     res.json({ reply: text });
 
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ reply: "Server error" });
   }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
+  console.log("✅ Server running on port", PORT);
 });

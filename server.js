@@ -14,14 +14,14 @@ app.post("/ask", async (req, res) => {
     }
 
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" + process.env.GEMINI_API_KEY,
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" +
+        process.env.GEMINI_API_KEY,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [
             {
-              role: "user",
               parts: [{ text: prompt }]
             }
           ]
@@ -30,27 +30,25 @@ app.post("/ask", async (req, res) => {
     );
 
     const data = await response.json();
+    console.log("RAW GEMINI:", JSON.stringify(data, null, 2));
 
-    console.log("Gemini RAW:", JSON.stringify(data, null, 2));
-
-    // ✅ SAFE TEXT EXTRACTION
-    let text =
+    const text =
       data?.candidates?.[0]?.content?.parts
         ?.map(p => p.text)
         ?.join(" ");
 
     if (!text) {
       return res.json({
-        reply: "No text returned by Gemini",
-        raw: data
+        reply: "❌ Gemini returned NO TEXT",
+        debug: data
       });
     }
 
     res.json({ reply: text });
 
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ reply: "Gemini API error" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ reply: "Server error" });
   }
 });
 

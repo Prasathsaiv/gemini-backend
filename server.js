@@ -8,16 +8,13 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Test route (optional – to check backend is alive)
 app.get("/", (req, res) => {
-  res.send("Gemini Backend is Running ✅");
+  res.send("Gemini Backend Running ✅");
 });
 
-// MAIN GEMINI ROUTE
 app.post("/ask", async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -26,8 +23,8 @@ app.post("/ask", async (req, res) => {
       return res.json({ reply: "Prompt is empty" });
     }
 
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
@@ -36,6 +33,7 @@ app.post("/ask", async (req, res) => {
         body: JSON.stringify({
           contents: [
             {
+              role: "user",
               parts: [{ text: prompt }],
             },
           ],
@@ -43,26 +41,27 @@ app.post("/ask", async (req, res) => {
       }
     );
 
-    const data = await geminiResponse.json();
+    const data = await response.json();
 
-    // 🔍 LOG FULL RESPONSE (VERY IMPORTANT FOR DEBUGGING)
-    console.log("RAW GEMINI RESPONSE:");
+    console.log("🔍 RAW GEMINI RESPONSE:");
     console.log(JSON.stringify(data, null, 2));
 
-    // ✅ CORRECT TEXT EXTRACTION
-    const reply =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "Gemini responded but text was not found";
+    // ✅ SAFE TEXT EXTRACTION (WORKS FOR ALL CURRENT GEMINI RESPONSES)
+    let reply =
+      data?.candidates?.[0]?.content?.parts
+        ?.map(p => p.text)
+        .join("") ||
+      data?.candidates?.[0]?.content?.text ||
+      "No text returned by Gemini";
 
     res.json({ reply });
 
-  } catch (error) {
-    console.error("❌ Gemini Backend Error:", error);
-    res.status(500).json({ reply: "Backend crashed" });
+  } catch (err) {
+    console.error("❌ Gemini error:", err);
+    res.status(500).json({ reply: "Backend error" });
   }
 });
 
-// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

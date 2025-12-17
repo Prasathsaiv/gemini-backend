@@ -1,64 +1,68 @@
 import express from "express";
-import cors from "cors";
 import fetch from "node-fetch";
+import cors from "cors";
 import dotenv from "dotenv";
 
-dotenv.config(); // 🔴 REQUIRED
+dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 
+// Test route (optional – to check backend is alive)
 app.get("/", (req, res) => {
-  res.send("Gemini backend is running ✅");
+  res.send("Gemini Backend is Running ✅");
 });
 
+// MAIN GEMINI ROUTE
 app.post("/ask", async (req, res) => {
   try {
     const { prompt } = req.body;
 
     if (!prompt) {
-      return res.status(400).json({ error: "Prompt is required" });
+      return res.json({ reply: "Prompt is empty" });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: "GEMINI_API_KEY missing" });
-    }
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           contents: [
             {
-              parts: [{ text: prompt }]
-            }
-          ]
-        })
+              parts: [{ text: prompt }],
+            },
+          ],
+        }),
       }
     );
 
-    const data = await response.json();
+    const data = await geminiResponse.json();
 
-    console.log("Gemini raw response:", JSON.stringify(data, null, 2));
+    // 🔍 LOG FULL RESPONSE (VERY IMPORTANT FOR DEBUGGING)
+    console.log("RAW GEMINI RESPONSE:");
+    console.log(JSON.stringify(data, null, 2));
 
+    // ✅ CORRECT TEXT EXTRACTION
     const reply =
       data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "No response from Gemini";
+      "Gemini responded but text was not found";
 
     res.json({ reply });
 
-  } catch (err) {
-    console.error("Server error:", err);
-    res.status(500).json({ error: "Server crashed" });
+  } catch (error) {
+    console.error("❌ Gemini Backend Error:", error);
+    res.status(500).json({ reply: "Backend crashed" });
   }
 });
 
-const PORT = process.env.PORT || 10000;
+// Start server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });

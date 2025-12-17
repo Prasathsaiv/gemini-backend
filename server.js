@@ -31,22 +31,14 @@ app.post("/ask", async (req, res) => {
 
     const data = await response.json();
 
-    if (!data.candidates) {
-      console.error("Gemini error:", data);
-      return res.status(500).json({ error: "Invalid Gemini response" });
-    }
+console.log("Gemini raw response:", JSON.stringify(data, null, 2));
 
-    res.json({
-      reply: data.candidates[0].content.parts[0].text
-    });
+const text =
+  data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+  data?.promptFeedback?.blockReason ||
+  "No response from Gemini";
 
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server crashed" });
-  }
+res.json({ reply: text });
+);
 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});

@@ -1,78 +1,65 @@
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
 app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.send("Gemini Backend Running ✅");
+  res.send("Gemini backend is running ✅");
 });
 
 app.post("/ask", async (req, res) => {
   try {
     const { prompt } = req.body;
 
-    if (!prompt || prompt.trim() === "") {
-      return res.json({ reply: "Prompt is empty" });
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt is required" });
     }
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: "GEMINI_API_KEY missing" });
+    }
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [
             {
-              role: "user",
-              parts: [{ text: prompt }],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 300,
-          },
-        }),
+              parts: [{ text: prompt }]
+            }
+          ]
+        })
       }
     );
 
-    const data = await geminiRes.json();
+    const data = await response.json();
 
-    console.log("🔍 RAW GEMINI RESPONSE:");
-    console.log(JSON.stringify(data, null, 2));
+    console.log("Gemini raw response:", JSON.stringify(data, null, 2));
 
-    let reply = "No text returned by Gemini";
+    const text =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    // ✅ STRONG EXTRACTION (ALL CASES)
-    if (
-      data.candidates &&
-      data.candidates.length > 0 &&
-      data.candidates[0].content &&
-      data.candidates[0].content.parts
-    ) {
-      reply = data.candidates[0].content.parts
-        .map(p => p.text)
-        .filter(Boolean)
-        .join(" ");
+    if (!text) {
+      return res.json({
+        reply: "Gemini responded but text was not found",
+        raw: data
+      });
     }
 
-    res.json({ reply });
+    res.json({ reply: text });
 
   } catch (error) {
-    console.error("❌ Backend error:", error);
-    res.status(500).json({ reply: "Backend error" });
+    console.error(error);
+    res.status(500).json({ error: "Gemini API failed" });
   }
 });
 
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
